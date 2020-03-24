@@ -1,5 +1,6 @@
-use async_trait::async_trait;
-use dataloader::{eager::cached::Loader, BatchFn};
+use dataloader::Loader;
+use dataloader::{BatchFn, BatchFuture};
+use futures::{future, FutureExt as _};
 use juniper::{EmptyMutation, EmptySubscription, IntrospectionFormat};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -35,16 +36,14 @@ impl User {
 
 pub struct UserBatch;
 
-#[async_trait]
 impl BatchFn<String, User> for UserBatch {
     type Error = ();
 
-    async fn load(&self, keys: &[String]) -> HashMap<String, Result<User, Self::Error>> {
+    fn load(&self, keys: &[String]) -> BatchFuture<User, Self::Error> {
         log::debug!("load batch {:?}", keys);
-
-        keys.iter()
-            .map(|key| (key.clone(), Ok(User { id: key.clone() })))
-            .collect()
+        future::ready(keys.iter().map(|key| User { id: key.clone() }).collect())
+            .unit_error()
+            .boxed()
     }
 }
 
